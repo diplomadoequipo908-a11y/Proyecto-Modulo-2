@@ -1,0 +1,108 @@
+---
+title: "segunda parte proyecto"
+format: html
+editor: visual
+autors : Anay Becerra Ayala
+         Bruno Díaz Cuevas
+         Brandon Patiño González
+         Enrique Olvera Galeana
+         David Suárez López
+---
+
+```{r}
+#install.packages("reticulate")
+library(reticulate)
+```
+
+David Suarez Lopez - palabra 19: Einstein
+
+```{python}
+# Importamos las paqueterias necesarias para hacer las consultas y poder hacer un dataframe cpn los resultados
+import requests
+import pandas as pd
+import time
+
+Mi_API_key = '0Rn7vcMfQD7D34AD214iOYapTvKgO4Uw2dg2WfSd'   
+Mi_palabra = 'Einstein'
+df_final = pd.DataFrame()     # Creamos un dataframe vacio para poder agregarle las busquedas
+
+# Creamos una lista de años para iterar
+años = range(1995, 2027) # De 1995 hasta 2026
+
+for i in años:
+    # Ajustamos el inicio para el primer año de la API
+    inicio = f"{i}-01-01" if i > 1995 else "1995-06-16"
+    fin = f"{i}-04-24"
+    
+    # Le agregamos los parametros a la url, como la API Key y los años de busqueda
+    url = f"https://api.nasa.gov/planetary/apod?api_key={Mi_API_key}&start_date={inicio}&end_date={fin}"
+    
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            datos = response.json()   # Al hacer solicitudes por periodos de tiempo nos devolverá una lista de diccionarios
+            for foto in datos:
+                explicacion = foto.get("explanation", "").lower()  # Tomamos la sección de explanation y la convertimos a letras minúsculas   
+                if Mi_palabra.lower() in explicacion: # Si la palabra Einstein esta en la sección explanation le pediremos que nos de los sig. datos 
+                    nuevo_registro = pd.DataFrame([{
+                        "Fecha": foto["date"],
+                        "Titulo": foto["title"],
+                        "URL": foto["url"],
+                        "Formato": foto["media_type"],
+                        "Copyright": foto.get("copyright", "Dominio Público / NASA")  # En algunos recursos no regresa el apaertado de copyright  
+                    }])                                                               # esto quiere decir que son de la NASA o de dominio publico
+                    df_final = pd.concat([df_final, nuevo_registro], ignore_index=True)
+        
+        # Haremos una pausa de 1 segundo para no saturar la API y que no nos bloqueen
+        time.sleep(1) 
+        
+    except Exception as e:
+        print(f"Error en el año {anio}: {e}")
+
+print(f"Se encontraron {len(df_final)} menciones en total.")
+```
+
+```{python}
+print(df_final)
+```
+
+Preguntas
+
+¿Cuántos resultados obtuviste?
+
+Respuesta: Obtuve 30 resultados en la busqueda de la palabra "Einstein"
+
+¿En que rangos de fecha se introdujo el recurso?
+
+La busqueda se realizo desde el año 1995 al 2026 y hay resultados desde 1996 hasta 2026, las fechas exactas se pueden consultar en el dataframe
+
+¿Cuáles son los "media type" mas comunes?
+
+El "media type" más común son imagenes, solo 3 de los 30 resultados son videos
+
+¿Quiénes son los autores o instituciones propietarias de los derechos?
+
+Gran parte son de dominio publico o de la NASA, algunos de los autores con mayor frecuenca de aparición son: J. Rhoads, Andrew Truscott y Randall Hulet. Puede consultar el dataframe para ver la lista completa de los autores.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
