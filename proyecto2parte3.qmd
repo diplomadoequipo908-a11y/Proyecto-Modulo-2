@@ -1,0 +1,1880 @@
+---
+title: "Proyecto Modulo 2 - Parte 3. Calidad del café"
+author: ["Becerra Ayala Anay", "Diaz Cuevas Bruno", "Patiño Gonzalez Brandon", "Olvera Galeana Enrique", "David Suarez Lopez"]
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    code-fold: true
+    theme: cosmo
+editor: visual
+---
+
+# Actividad de coffe_ratings.csv
+
+En esta actividad se hará un análisis exploratorio y limpieza de datos con las tabla de coffee_ratings.csv, dicha tabla tiene información de peso, humedad, altitutd, nombre de granja y etc, siendo información necesaria en la producción de café.
+
+## Actividades 0, 1 y 2
+
+```{r}
+#1
+install.packages("reticulate")
+install.packages("dplyr")
+install.packages("ggplot2")
+
+```
+
+## Análisis de valores faltantes
+
+Primero, haremos la instalación de pandas para poder trabajar dataframes con R usando comando de python. Esto lo podemos hacer debido a la instalación de "reticulate":
+
+```{r}
+#2
+#en esta sección llamamos nuestras librerias
+library(reticulate) #nos permite programar en python usando r
+library(dplyr) #nos permite trabajar dataframe en comando r
+library(ggplot2) #nos permite hacer graficas en r
+```
+
+```{r}
+#3
+pd <- py_require("pandas") #instalamos panda en python
+#esto nos ayuda a generar los dataframe en python con R
+```
+
+```{r}
+#4
+library(reticulate) #siempre se llama reticulate para correr codigo de python
+pd <- import("pandas") #pedimos importar la librería de pandas de python
+coffee <- pd$read_csv("coffee_ratings.csv")%>% py_to_r() #hacemos lectura de los datos de coffeee
+glimpse(coffee) #pedimos que nos muestre una especie de data frame sobre los datos café
+```
+
+```{r}
+#5
+library(readr)
+```
+
+```{r}
+#6
+#usando dplyr para programar en r y hacer vista del dataframe
+coffee <- read_csv("coffee_ratings.csv")
+
+glimpse(coffee) #esto nos arroja el data frame con los valores de la columna de forma desordenada
+```
+
+En el data frame vemos que son \$43\$ columnas que nos da información sobre total_cup_points (calidad de la taza de café), species (especie de café), owner (propietario del cultivo de café), country_of_origin (país de origen del café), altitude_mean_meters (altura promedio en metros) y etc, así como se muestra en la impresión de nombres de columnas con reticulate.
+
+```{r}
+#7
+df <- read_csv("coffee_ratings.csv")
+
+df %>%
+  names() %>%
+  print()
+
+df %>%
+  ncol() %>%
+  paste("\nTotal:",., "columnas") %>%
+  cat()
+```
+
+```{r}
+#8
+library(reticulate)
+py_run_string("
+import pandas as pd
+
+df = pd.read_csv('coffee_ratings.csv') #pedimos lectura del archivo .csv
+
+print('Nombres de todas las columnas:') #imprime el nombre de las columnas
+print(df.columns.tolist()) #nos da los nombres de cada columna o sus strings
+
+print(f'\\nTotal: {len(df.columns)} columnas') #nos dice cuantos strings o atributos del .csv se toman en cuenta
+")
+```
+
+Con esto conocemos el número total de columnas y lo que deben registrar esas columnas usando python.
+
+Por otro lado, podemos crear un dataframe con reticulate más ordenado y que podamos ver información de los atributos de cada una de sus columnas.
+
+```{r}
+#9
+df <- read_csv("coffee_ratings.csv") # lectura directa en R
+df # muestra el dataframe
+```
+
+```{r}
+#10
+library(reticulate) #llamamos reticulate para no tener problemas en la lectura con python
+pd <- import("pandas") #pedimos importar la librería pandas
+df <- pd$read_csv("coffee_ratings.csv") #pedimos que lea el pandas con $ que es el puente entre python y r
+head(df) #llamamos al dataframe de ratings cooffee
+```
+
+```{r}
+#11
+install.packages("readr")
+```
+
+```{r}
+#12
+library(readr) #llamamos la librearia readr para hacer lectura con r del csv
+```
+
+```{r}
+#13
+datos <- readr::read_csv("coffee_ratings.csv") #pedimos que lea los datos coffee tatings
+```
+
+Nos arroja que tenemos 24 caracteres y 19 valores de dobleprecisión en la tabla, fue lo mismo que hicimos en python, pero con r nos es más versátil, ya que arrojo el tipo de dato registrado en cada columna.
+
+Además, podemos notar que el dataframe creado por pandas tiene NA o valores vacíos, por ello, nos damos a la tarea contar cuantos NA hay en cada atributo de cada una de las columnas. La idea es calcular el total de NA con respecto de los datos tomados. Así, podemos ver si un NA puede ser eliminado.
+
+```{r}
+#14
+reticulate::py_run_string("
+import pandas as pd
+df = pd.read_csv('coffee_ratings.csv')
+print(df.isna().sum().sort_values(ascending=False))
+")
+```
+
+```{r}
+#15
+install.packages("tidyr")
+```
+
+```{r}
+#16
+library(tidyr)
+```
+
+```{r}
+#17
+df <- read_csv("coffee_ratings.csv")
+
+df %>%
+  summarise(across(everything(), ~ sum(is.na(.)))) %>%
+  pivot_longer(everything(), names_to = "columna", values_to = "total_na") %>%
+  arrange(desc(total_na))
+```
+
+La idea es visualizar cuantos NA hay por cada columna de la tabla y como esto podría afectar nuestro análisis de datos. Como vemos lot_number, farm_name, color, mill y etc, tienes muchos NA, sin embargo, ¿Cuánto es mucho? Por ende, debemos de ver los NA de forma muy visual y de forma porcentual o de conteo discreto de estos usando mpas de calor.
+
+Consecuentemente, calculamos el porcentaje de NA por cada columna que corresponde a cada uno de los atributos:
+
+```{r}
+#18
+library(reticulate) #llamamos a reticulate para ejecutar una orden de python
+py_require("seaborn") #usamos el paquete seaborn de python, lo que nos ayuda a graficar de forma más sencilla sin tanto código
+```
+
+```{r}
+#19
+df <- read_csv("coffee_ratings.csv")
+
+df %>%
+  summarise(across(everything(), ~ sum(is.na(.)))) %>%
+  pivot_longer(everything(), names_to = "columna", values_to = "total_na") %>%
+  filter(total_na > 0) %>%
+  arrange(desc(total_na)) %>%
+  ggplot(aes(x = reorder(columna, -total_na), y = total_na)) +
+  geom_col(fill = "coral", width = 0.85) +
+  geom_text(aes(label = total_na), vjust = -0.3, size = 3) +
+  labs(title = "Conteo de NA por columna", 
+       x = "Columnas", y = "Conteo de NA") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+library(reticulate)
+
+py_run_string("
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+
+df = pd.read_csv('coffee_ratings.csv') # CSV original, sin color2
+
+na_porcenta = (df.isna().sum() / len(df) * 100).sort_values(ascending=False)
+cols_con_na = na_porcenta[na_porcenta > 0].index
+na_count = df.isna().sum()[cols_con_na]
+
+fig, axes = plt.subplots(2, 1, figsize=(14, 10), gridspec_kw={'height_ratios': [3, 1]})
+sns.heatmap(df[cols_con_na].isna(), cbar=False, yticklabels=False,
+            cmap='rocket_r', ax=axes[0])
+axes[0].set_title('Patrón de Valores Faltantes', fontsize=14)
+axes[0].set_xlabel('')
+axes[0].set_xticks([])
+
+bars = na_count.plot(kind='bar', ax=axes[1], color='coral', width=0.85)
+axes[1].set_ylabel('Conteo de NA')
+axes[1].set_xlabel('Columnas')
+axes[1].tick_params(axis='x', rotation=45)
+axes[1].bar_label(bars.containers[0], fmt='%d', padding=3, fontsize=9)
+
+plt.tight_layout()
+plt.show()
+")
+```
+
+Este mapa es sólo para verificar la información del pandas de la tabla .csv, no hay nada nuevo, solo tenemos una mejor visualización gráfica y sencilla.
+
+```{r}
+#21
+py_run_string("
+import pandas as pd
+df = pd.read_csv('coffee_ratings.csv')
+
+filas_completas = df.dropna().shape[0]
+total_filas = df.shape[0]
+print(f'Filas completas: {filas_completas} de {total_filas}')
+print(f'Porcentaje: {filas_completas/total_filas*100:.1f}%')
+print(f'Filas con al menos 1 NA: {total_filas - filas_completas}')
+")
+```
+
+Aquí hacemos un conteo rápido del peso de los NA en el .csv, vemos que las filas completas representan el $9.9\%$ de los datos de nuestra tabla. Por otro lado, vemos que la mayoría de filas tienen muchos NA, lo que puede indicar una mala toma de datos o no hay datos.
+
+```{r}
+#22
+df <- read_csv("coffee_ratings.csv") #leeemos el .csv con dataframe
+
+total_filas <- nrow(df) #vemos el número de columnas
+filas_completas <- sum(complete.cases(df)) #sumamos todas la columnas completas o sin na
+
+cat("Filas completas:", filas_completas, "de", total_filas, "\n")
+cat("Porcentaje:", round(filas_completas / total_filas * 100, 1), "%\n") 
+cat("Filas con al menos 1 NA:", total_filas - filas_completas, "\n")
+```
+
+```{r}
+#23
+df <- read_csv("coffee_ratings.csv")
+
+df %>%
+  summarise(across(everything(), ~ sum(is.na(.)) / n() * 100)) %>%
+  pivot_longer(everything(), names_to = "columna", values_to = "pct_na") %>%
+  filter(pct_na > 0) %>%
+  arrange(desc(pct_na)) %>%
+  ggplot(aes(x = reorder(columna, -pct_na), y = pct_na)) +
+  geom_col(fill = "coral", width = 0.85) +
+  geom_text(aes(label = sprintf("%.1f%%", pct_na)), 
+            vjust = -0.3, size = 2.5) +
+  labs(title = "Porcentaje de Valores Faltantes",
+       x = "Columnas", y = "% de NA") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+```
+
+```{r}
+#24
+library(reticulate)
+
+py_run_string("
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+df = pd.read_csv('coffee_ratings.csv') #abrimos o leemos el csv con pandas
+na_percent = (df.isna().sum() / len(df) * 100).sort_values(ascending=False) #que nos
+#arroje el porcentaje de na por columnas
+cols_con_na = na_percent[na_percent > 0].index #agrega el valor de porcentaje de #cada columna
+
+fig, axes = plt.subplots(2, 1, figsize=(12, 8), gridspec_kw={'height_ratios': [3, 1]}) #definimos tamaños del gráfico
+
+# hacemos el mapeo de calor arriba de las barras con seanborn 
+sns.heatmap(df[cols_con_na].isna(), cbar=False, yticklabels=False,
+            cmap='rocket_r', ax=axes[0])
+axes[0].set_title('Porcentaje de Valores Faltantes', fontsize=14)
+axes[0].set_xlabel('')
+axes[0].set_xticks([])
+
+# Barra con % abajo
+bars = na_percent[cols_con_na].plot(kind='bar', ax=axes[1], color='coral')
+axes[1].set_ylabel('% de NA')
+axes[1].set_xlabel('Columnas')
+axes[1].tick_params(axis='x', rotation=90)
+
+# Agrega los números arriba de cada barra
+axes[1].bar_label(bars.containers[0], fmt='%.1f%%', padding=3, fontsize=7)
+
+plt.tight_layout()
+plt.show()
+")
+```
+
+Esta visualización, nos permite ver el porcentaje NA del csv y del df en pandas, vemos que la fila lot_number, farm_name, mill, color y producer, pueden verse muy afectadas por los NA, si nuestra tolerancia fuese de \$20\\%\$. Por ende, no se pueden borrar NA indiscriminadamente. Además, vemos que hay columnas con la misma cantidad de NA en porcentaje, lo que puede indicar replicación de datos o mala notificación de estos, véase la columna owner y owner_1; las columnas referente a la altitud media, baja y alta.
+
+Por ende, lo que nos corresponde es analizar si hay relación entre los NA y esas coincidencias porcentuales en la captura de datos del coffeee_ratings.csv. Por ende, a continuación hacemos un mapero de correlación entre los valores de las filas:
+
+```{r}
+#25
+install.packages("corrplot")
+```
+
+```{r}
+#26
+library(corrplot) #usamos la librería de correlación, para ahorrar pasos en ggplot2
+```
+
+```{r}
+#27
+df %>%
+  select(where(~ any(is.na(.)))) %>% #seleccionamos todos los na
+  mutate(across(everything(), is.na)) %>% #los mutamos a objetos contables
+  cor() %>%
+  corrplot(method = "color", #pedimos la gráfica de correlación con todos las especificaciones
+           col = COL2('RdBu', 200),
+           tl.col = "black", tl.srt = 45, tl.cex = 0.6,
+           addCoef.col = "black", number.cex = 0.5,
+           title = "Correlación de Valores Faltantes", #titulo del gráfico
+           mar = c(0,0,1,0)) #controla el margen del grafico
+```
+
+```{r}
+#28
+library(reticulate)
+py_run_string("
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+df = pd.read_csv('coffee_ratings.csv') #leemos el df en pandas
+cols_con_na = df.columns[df.isna().any()] #que tome los valores con na
+
+plt.figure(figsize=(9, 5)) # tamaño de la imagen
+sns.heatmap(df[cols_con_na].isna().corr(),
+            cmap='coolwarm',
+            annot=True,
+            fmt='.2f',
+            vmin=-1, vmax=1,
+            annot_kws={'size': 6}) # Fuente más chica
+plt.title('Correlación de Valores Faltantes', fontsize=10)
+plt.xticks(rotation=45, ha='right',fontsize=6)
+plt.yticks(rotation=0,fontsize=6)
+plt.tight_layout()
+plt.show()
+")
+```
+
+En efecto, esto confirma nuestras sospecha, los valores de altitud tiene una correlación muy alta, es decir que tomaron los mismos datos y otros no los concían, coincidiendo punto a punto. Por otro lado, owner y owner_1, tienen un correlación alta, quiere decir que replicaron las filas en ambas columnas. Es obvio que la traza de la matriz debe coincidir con sus mismos valores, y los de correlación media-alta como farm_name y producer coinciden en \$0.66\$, lo que puede indicar que se pusiera el mismo dato para el llenado de la tabla. Otro más o menos interesante, es que se puede ver el desconocimiento del proceso de producción con la variedad, lo que indica que no se supo llenar o se desconoce por parte de los entrevistados productores de café.
+
+Finalmnete, otro análisis que vale la pena hacer para los NA es ver que países reportan más NA y cuáles columnas les falla más a cada uno.
+
+```{r}
+#29
+df %>%
+  group_by(country_of_origin) %>%
+  summarise(
+    total_cafes = n(),
+    cafes_con_na = sum(if_any(everything(), is.na)),
+    .groups = "drop"
+  ) %>%
+  mutate(porcent_con_na = round(cafes_con_na / total_cafes * 100, 1)) %>%
+  arrange(desc(porcent_con_na))
+```
+
+```{r}
+#30
+py_run_string("
+import pandas as pd
+
+df = pd.read_csv('coffee_ratings.csv') #leemos con pandas el csv
+
+# marcamos filas que tienen al menos un na
+df['tiene_na'] = df.isna().any(axis=1)
+
+resultado = df.groupby('country_of_origin').agg(
+    total_cafes=('tiene_na', 'count'),
+    cafes_con_na=('tiene_na', 'sum')
+)
+resultado['%_con_na'] = (resultado['cafes_con_na'] / resultado['total_cafes'] * 100).round(1) #sacamos el porcentaje de na de la columna na por país
+resultado = resultado.sort_values('%_con_na', ascending=False) #que acomode el pctj o porcentaje de mayor a menor
+
+print('Países con mayor % de cafés incompletos:') #imprime los países con mayor café incompletp
+print(resultado.head(20)) #pedimos al menos 20 filas
+")
+```
+
+Vemos que todos los países tienen al menos un NA en sus columnas de café. Por otro lado, los países con mayor NA son Colombia con \$183\$, Etiopía con \$44\$, Kenia con \$25\$ y Malawi con \$11\$.
+
+```{r}
+#31
+df <- read_csv("coffee_ratings.csv")
+
+# países con más 30 cafés
+paises_grandes <- df %>%
+  count(country_of_origin) %>%
+  filter(n >= 30) %>%
+  pull(country_of_origin) %>%
+  head(6)  # pedimos 6 países
+#aplicamos un filtro por países con más na
+for (pais in paises_grandes) {
+  df_pais <- df %>% filter(country_of_origin == pais)
+  
+  na_cols <- df_pais %>% #filtramos las columnas con na
+    summarise(across(everything(), ~ sum(is.na(.)))) %>%
+    pivot_longer(everything(), names_to = "columna", values_to = "total_na") %>%
+    filter(total_na > 0) %>% #pedimos aquellas con aunque sea un na
+    arrange(desc(total_na)) %>%
+    head(6)  # 6 columnas con más NA
+  
+  cat("\n=== ", pais, " === ", nrow(df_pais), " cafés\n", sep = "")
+  print(na_cols, n = Inf)
+}
+```
+
+```{r}
+#32
+py_run_string("
+import pandas as pd
+
+df = pd.read_csv('coffee_ratings.csv')
+
+# países con más 30 cafés para ver más errores
+paises_grandes = df['country_of_origin'].value_counts()
+paises_grandes = paises_grandes[paises_grandes >= 30].index
+
+for pais in paises_grandes[:6]:  # pedimos 6 países
+    df_pais = df[df['country_of_origin'] == pais] #pedimos el nombre de cada país dentro de los 6 en el top
+    na_cols = df_pais.isna().sum() #hacemos el conteo de NA por columna
+    na_cols = na_cols[na_cols > 0].sort_values(ascending=False) #que acomode los valores de form ascendente
+
+    print(f'\\n=== {pais} === {len(df_pais)} cafés')
+    print(na_cols.head(6)) #imprime los 6 países con peor registro
+")
+```
+
+Aunque si nos vamos a un análisis por cada una de las filas y en la toma de datos, los países con mayor NA son México, Guatemala, Brasil y Taiwan. Como análisis, tomaremos a México con mucho error o falta de dato en lot_number, compañía y mill. Por otro lado, Brasil tiene más Na en lot_number, la altitud que la registra igual y el mill. Al igual que Guatemala pasa con la altitud y Colombia con los nombres granja y lot_number. Lo que nos indica que México deconoce el número de lote de su café al igual que Brasil. Además, Gautemala y Brasil registran mal la altitud de su productora de café. Y que el Mill es mal tomado en México, Brasil y Colombia. Razones de esto, puede deberse a que no está bien documentada la toma y el seguimiento del café durante su proceso de producción o la gente esté mal informada, haciendo un mal llenado del .csv.
+
+Siguiendo con la presentación de tablas y datos, si queremos hacer las siguientes modificaciones NA si `color == NA`, "#00FF66" si `color == 'Green'`, "#CCEBC5" si `color == 'Bluish-green'` y "#BFFFFF" si `color == 'Blue-green'. Podemos proceder enlistando las tablas antes de su modificación, para comprobar que así están dados los valores de color:`
+
+```{r}
+#33
+df <- read_csv("coffee_ratings.csv")
+
+# Ver todos los valores únicos de color + cuántas veces aparecen
+df %>%
+  count(color, sort = TRUE, name = "n_cafes")
+
+# Solo los valores distintos, sin conteo
+unique(df$color)
+```
+
+```{r}
+#34
+library(reticulate)
+
+py_run_string("
+import pandas as pd
+
+df = pd.read_csv('coffee_ratings.csv')
+
+# Conteo de cada valor único, NA incluidos
+print('Valores únicos en columna color:')
+print(df['color'].value_counts(dropna=False).to_string())
+
+print('\\nSolo valores distintos:')
+print(df['color'].unique())
+")
+```
+
+En efecto tenemos tantos valores con esa información dentros de las tablas, es decir, tenoms $$870$$ caracteres con color verde, $$270$$ con NaN, $$114$$ con Bluish-Green y $$85$$ Blue-Green
+
+Por ende, para hacer la modificación usamos en R un case when y en python un diccionario. Obviamente, para que salgan las modificaciones lo esperado, tenemos que respectar la escritura de los colores como se registra en la tabla o podemos hacer homogeneos los nombres. En nuestro caso, optamos por respetar la escritura para hacer menos código:
+
+```{r}
+#35
+df <- read_csv("coffee_ratings.csv") #pedimos lectura de dataframe de café
+
+df <- df %>% #hacemos pipe
+  mutate(color2 = case_when( #pedimos que mute el caracter de la tabla para modificarlo y escribir el NA
+    is.na(color) ~ NA_character_,
+    color == "Green" ~ "#00FF66", #hacemos la modificación de los nombres
+    color == "Bluish-Green" ~ "#CCEBCS",
+    color == "Blue-Green" ~ "#BFFFFF",
+    TRUE ~ NA_character_  # Cualquier otro valor se vuelve NA
+  ))
+
+# vemos tabla antes y después
+df %>%
+  select(color, color2) %>%
+  distinct() %>%
+  arrange(color)
+```
+
+```{r}
+#36
+library(reticulate)
+
+py_run_string("
+import pandas as pd #importamos pandas
+
+df = pd.read_csv('coffee_ratings.csv') #leemos el .csv con pandas
+
+# Diccionario de mapeo
+color_map = {  #hacemos un diccionario con los colores
+    'Green': '#00FF66',
+    'Bluish-Green': '#CCEBCS', 
+    'Blue-Green': '#BFFFFF'
+}
+
+# Crear color2: usa map, si no está en el dict queda NaN
+df['color2'] = df['color'].map(color_map) #dcreamos la columna color 2 con los colores asociados al código
+
+# vemos valores únicos antes y después
+print('Tabla de mapeo color -> color2:')
+print(df[['color', 'color2']].drop_duplicates().sort_values('color').to_string(index=False))
+
+print(f'\\nValores únicos en color original: {df[\"color\"].nunique()}')
+print(f'Valores únicos en color2: {df[\"color2\"].nunique()}')
+print(f'NA en color2: {df[\"color2\"].isna().sum()}')
+")
+```
+
+Llamamos las tablas para ver si se efectuo el cambio de color según lo planeado:
+
+```{r}
+#37
+df <- read_csv("coffee_ratings.csv")
+
+df_mod <- df %>%
+  mutate(color2 = case_when(
+    is.na(color) ~ NA_character_,
+    color == "Green" ~ "#00FF66",
+    color == "Bluish-Green" ~ "#CCEBCS",
+    color == "Blue-Green" ~ "#BFFFFF",
+    TRUE ~ NA_character_
+  ))
+
+# Ver solo las 2 columnas, valores únicos
+df_mod %>%
+  select(color, color2) %>%
+  distinct() %>%
+  arrange(color)
+
+# Ver las primeras 20 filas completas con ambas columnas
+df_mod %>%
+  select(color, color2, country_of_origin, total_cup_points) %>%
+  head(30)
+
+# Ver solo las filas donde color2 no es NA
+df_mod %>%
+  filter(!is.na(color2)) %>%
+  select(color, color2) %>%
+  head(30)
+```
+
+```{r}
+#38
+library(reticulate)
+
+py_run_string("
+import pandas as pd
+
+df = pd.read_csv('coffee_ratings.csv')
+
+color_map = {
+    'Green': '#00FF66',
+    'Bluish-Green': '#CCEBCS', 
+    'Blue-Green': '#BFFFFF'
+}
+df['color2'] = df['color'].map(color_map)
+
+# Tabla resumen: solo valores únicos de color y color2
+print('Mapeo único color -> color2:')
+print(df[['color', 'color2']].drop_duplicates().sort_values('color').to_string(index=False))
+
+# Primeras 20 filas con ambas columnas
+print('\\nPrimeras 20 filas:')
+print(df[['color', 'color2', 'country_of_origin', 'total_cup_points']].head(20).to_string(index=False))
+
+# Solo filas donde color2 tiene valor
+print('\\nSolo filas con color2 asignado:')
+print(df[df['color2'].notna()][['color', 'color2']].head(15).to_string(index=False))
+")
+
+# Para pasar el df modificado a R y verlo con View()
+#df_r <- py$df
+#View(df_r)
+```
+
+Para ver si contamos con las cantidades anteriores a cada color, usamos el resumen de colores para color2:
+
+```{r}
+#39
+library(reticulate)
+#py$df_mod <- df_mod
+#df_mod<- df_mod
+#py$df_mod <-df_mod
+py_run_string("
+import pandas as pd
+
+#df = pd.read_csv('coffee_ratings.csv')
+
+# Conteo de cada valor único, NA incluidos
+print('Valores únicos en columna color:')
+print(r.df_mod['color2'].value_counts(dropna=False).to_string())
+#{print('\\nSolo valores distintos:')} print(df_mod['color2'].unique()) ")
+```
+
+```{r}
+df_mod
+```
+
+```{r}
+#40
+df_mod <- read_csv("coffee_ratings.csv") %>%
+  mutate(color2 = case_when(
+    is.na(color) ~ NA_character_,
+    color == "Green" ~ "#00FF66",
+    color == "Bluish-Green" ~ "#CCEBCS",
+    color == "Blue-Green" ~ "#BFFFFF",
+    TRUE ~ NA_character_
+  ))
+
+# usamos color2
+df_mod %>% count(color2, sort = TRUE)
+```
+
+Vemos que coinciden con la cantidad de caracteres dentro de la tabla correspondientes a los colores originales dentro del dataframe df_mod.
+
+```{r}
+#41
+df_mod
+```
+
+En cambio, queremos ver la columna bag_weight o peso, esta columna tiene un problema y es que queremos el valor número sin la unidad de kilogramos (kg) y libras (lbs). Por ende, se trabajará bajo df_mod.También, otras observaciones es que hay filas sin unidades como la novena fila que tiene el número 6 o se ven valores como 20 kg,lbs.
+
+Para ver más de esas ambigüedades, podemos usar el siguiente comando con la columna peso de la bolsa:
+
+```{r}
+#42
+df_mod %>%
+  count(bag_weight, sort=TRUE, name="n-cafes")
+```
+
+```{r}
+#43
+library(reticulate)
+py_config()
+```
+
+```{r}
+#44
+library(reticulate)
+conteo_r <- df_mod %>%
+  count(bag_weight,sort=TRUE, name="n-cafes")
+# ejecutamos el codigo de python
+py_run_string("
+import pandas as pd
+conteo_desde_r = r.conteo_r  #  el conteo ya hecho
+print(conteo_desde_r.head(15))
+")
+#conteo = r.df_mod['bag_weight'].value_counts().reset_index()
+#conteo.columns = ['bag_weight', 'n_cafes']
+#conteo = conteo.sort_values('n_cafes', ascending=False)
+#")
+
+# vemos el resultado de python
+
+#python_conteo <- py$conteo_desde_r
+#head(python_conteo)
+```
+
+```{r}
+#45
+install.packages("stringr")#usaremos este paquete, ya que nos permite seleccionar los strings y modificarlos
+```
+
+```{r}
+#46
+library(stringr)
+```
+
+```{r}
+#47
+df_mod <- df_mod %>%
+  mutate(bag_weight2 = case_when( #definimos como queremos mutar la columna weight2
+    #de string a número
+    is.na(bag_weight) ~ NA_real_, #Si hay NA lo toma como valor lógico
+    str_detect(tolower(bag_weight), "lbs") ~ parse_number(bag_weight) * 0.453592,
+    #hacemos la conversión de kg a libras si detecta el peso lbs
+    TRUE ~ parse_number(bag_weight)  # todo lo demás lo toma como kg
+  ))
+
+# Ver cómo quedó la conversión
+df_mod %>% #llamamos nuesro datafram modificado
+  filter(str_detect(bag_weight, "lbs")) %>% # filtra las filas con libras
+  select(bag_weight, bag_weight2) %>% #se queda con las columnas weight y weight2 
+  distinct() %>% #elimina duplicados
+  arrange(bag_weight2)#muestra la columna weight2
+```
+
+```{r}
+#48
+library(reticulate)
+
+# 1. Creamos bag_weight2 y verificacion, y los regresamos directo a R
+resultado_python <- py_run_string("
+import pandas as pd
+import numpy as np
+
+# IMPORTANTE: jalamos df_mod desde R con r.
+df = r.df_mod.copy() # copiamos para no modificar el original de R
+
+# Creamos la columna nueva bag_weight2
+df['bag_weight2'] = np.where(
+    df['bag_weight'].str.lower().str.contains('lbs', na=False),
+    # si tiene 'lbs': extrae número y convierte a kg
+    df['bag_weight'].str.extract(r'([\\d\\.]+)')[0].astype(float) * 0.453592,
+    # si no: solo extrae el número
+    df['bag_weight'].str.extract(r'([\\d\\.]+)')[0].astype(float)
+)
+
+# Tabla de verificación como la de R: filter + select + distinct + arrange
+verificacion = (df
+   .loc[df['bag_weight'].str.contains('lbs', case=False, na=False)]
+    [['bag_weight', 'bag_weight2']]
+   .drop_duplicates()
+   .sort_values('bag_weight2')
+)
+
+# Actualizamos df_mod con la columna nueva
+df_mod_py = df
+")
+
+# 2. Jalamos los 2 objetos de Python a R de una
+verificacion <- resultado_python$verificacion
+df_mod <- resultado_python$df_mod_py # df_mod ahora tiene bag_weight2
+
+# 3. Mostramos la verificación
+verificacion
+```
+
+Como podemos visualizar, la conversión solo funciono tomando el segundo string de lbs para los casos en los que convivían kg,lbs juntos, por ende, no es del todo precisa la conversión númerica. Ya que habría que hacer más apartados de kg y lbs.
+
+# Actividades 3 y 4
+
+El objetivo es transformar variables del conjunto de datos de calidad del café, se trabajará con las variables `processing_method` y `expiration`.
+
+Se implementará la solución tanto en R como en Python.
+
+```{r}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(skimr)
+library(reticulate)
+
+py_config()
+```
+
+Leemos los datos en R.
+
+```{r}
+datos <- read_csv("coffee_ratings.csv")
+```
+
+También cargamos los datos en Python.
+
+```{python}
+import pandas as pd
+
+datos_py = pd.read_csv(
+    "coffee_ratings.csv"
+)
+
+datos_py.head()
+```
+
+Actividad 3: Crear dos columnas llamadas method1 y method2 que se basen en los valores de la columna processing_method, dividiendo en dos partes los valores dicha columna. ¿Cuántas observaciones llevaron a ambigüedad para crear esta nueva columna?
+
+Primero observamos algunos registros
+
+```{r}
+head(datos$processing_method,10)
+```
+
+Se considerarán ambiguas las observaciones que no contienen exactamente un símbolo "/"
+
+```{r}
+ambiguas_method <- datos %>%
+filter(
+!is.na(processing_method) &
+str_count(processing_method,"/") !=1
+)%>%
+nrow()
+
+ambiguas_method
+```
+
+Creamos las nuevas variables.
+
+```{r}
+datos <- datos %>%
+separate(
+processing_method,
+into=c(
+"method1",
+"method2"
+),
+sep="/",
+fill="right",
+extra="merge",
+remove=FALSE
+) %>%
+mutate(
+method1=str_trim(method1),
+method2=str_trim(method2)
+)
+```
+
+Revisamos el resultado
+
+```{r}
+datos %>%
+select(
+processing_method,
+method1,
+method2
+)%>%
+head()
+```
+
+Número de observaciones ambiguas encontradas
+
+```{r}
+ambiguas_method
+```
+
+Con Python
+
+Repetimos el procedimiento
+
+```{python}
+ambiguas_method_py = datos_py[
+    datos_py["processing_method"].notna()
+    &
+    (
+      datos_py["processing_method"]
+      .str.count("/") !=1
+    )
+].shape[0]
+
+ambiguas_method_py
+```
+
+```{python}
+datos_py[
+["method1","method2"]
+] = (
+datos_py[
+"processing_method"
+]
+.str.split(
+"/",
+n=1,
+expand=True
+)
+)
+
+datos_py["method1"] = (
+datos_py["method1"]
+.str.strip()
+)
+
+datos_py["method2"] = (
+datos_py["method2"]
+.str.strip()
+)
+
+datos_py[
+[
+"processing_method",
+"method1",
+"method2"
+]
+].head()
+```
+
+-   Número de observaciones ambiguas:
+
+```{python}
+print(
+"Observaciones ambiguas:",
+ambiguas_method_py
+)
+```
+
+Actividad 4: Crear tres columnas llamadas expiration_day, expiration_month y expiration_year que se basen en los valores de la columna expiration. ¿Cuántas observaciones llevaron a ambigüedad para crear estas nuevas columnas?
+
+-   R
+
+Revisamos algunos registros.
+
+```{r}
+head(datos$expiration,10)
+```
+
+Una observación ambigua será aquella que no tenga tres componentes
+
+```{r}
+ambiguas_expiration <- datos %>%
+filter(
+!is.na(expiration)
+&
+str_count(expiration," ")!=2
+)%>%
+nrow()
+
+ambiguas_expiration
+```
+
+Separamos la fecha
+
+```{r}
+datos <- datos %>%
+separate(
+expiration,
+into=c(
+"expiration_month",
+"expiration_day",
+"expiration_year"
+),
+sep=" ",
+remove=FALSE
+)
+```
+
+Eliminamos caracteres innecesarios
+
+```{r}
+datos <- datos %>%
+mutate(
+expiration_day=
+str_remove_all(
+expiration_day,
+",|st|nd|rd|th"
+)
+)
+```
+
+```{r}
+datos %>%
+select(
+expiration,
+expiration_month,
+expiration_day,
+expiration_year
+)%>%
+head()
+```
+
+-   Número de observaciones ambiguas encontradas:
+
+```{r}
+ambiguas_expiration
+```
+
+-   Python
+
+-   Repetimos el procedimiento utilizando Python.
+
+```{python}
+ambiguas_expiration_py = datos_py[
+datos_py["expiration"].notna()
+&
+(
+datos_py["expiration"]
+.str.count(" ") !=2
+)
+].shape[0]
+
+ambiguas_expiration_py
+```
+
+```{python}
+datos_py[
+[
+"expiration_month",
+"expiration_day",
+"expiration_year"
+]
+] = datos_py[
+"expiration"
+].str.split(
+" ",
+n=2,
+expand=True
+)
+
+datos_py["expiration_day"]=(
+datos_py["expiration_day"]
+.str.replace(
+",",
+"",
+regex=False
+)
+.str.replace(
+r"st|nd|rd|th",
+"",
+regex=True
+)
+)
+
+datos_py[
+[
+"expiration",
+"expiration_month",
+"expiration_day",
+"expiration_year"
+]
+].head()
+```
+
+Número de observaciones ambiguas:
+
+```{python}
+print(
+"Observaciones ambiguas:",
+ambiguas_expiration_py
+)
+```
+
+# Actividades 5 y 6
+
+Estas actividades corresponden al manejo de las columnas de cosecha y el manejo de datos en gráficos de acidez, point_cup y color:
+
+```{r}
+library(readr)
+library(readxl) 
+library(ggplot2) 
+library(lubridate)
+library(skimr)
+library(stringr)
+```
+
+```{r}
+library(reticulate)
+```
+
+Actividad 5 (r) Crea dos columnas llamadas harvest_mes y harvest_anio, que se basen en los valores de las columnas harvest_year, dividiendo en dos partes los valores de dicha columna
+
+```{r}
+datos_cafe <- read.csv("coffee_ratings.csv")
+head(datos_cafe)
+```
+
+)
+
+```{r}
+
+# Creamos un diccionario con los meses, estaciones de año y periodos de mesea que aparecen en la columna harvest_year para despues asignarles los meses o periodos de meses que corresponden en español
+diccionario_meses <- c(
+  "january" = "Enero", "january through april" = "Enero - Abril",
+  "february" = "Febrero", "march" = "Marzo", "april" = "Abril", "abril" = "Abril",
+  "may" = "Mayo", "june" = "Junio", "july" = "Julio", "august" = "Agosto",
+  "september" = "Septiembre", "sept" = "Septiembre", "october" = "Octubre",
+  "november" = "Noviembre", "december" = "Diciembre",
+  "may-august" = "Mayo - Agosto",
+  "abril - julio" = "Abril - Julio",
+  "december 2009-march 2010" = "Diciembre - Marzo",
+  "sept 2009 - april 2010" = "Septiembre - Abril",
+  "august to december" = "Agosto - Diciembre",
+  "mayo a julio" = "Mayo - Julio",
+  "fall" = "Octubre - Diciembre",
+  "spring" = "Marzo - Mayo"
+)
+
+# Extraemos los nombres de las llaves del diccionario
+nombres_claves <- names(diccionario_meses)
+
+# Los ordenamos de mayor a menor número de letras, esto para que se puedan distinguir los casos como january through april y january
+nombres_ordenados <- nombres_claves[order(nchar(nombres_claves), decreasing = TRUE)]
+
+# Ahora los juntamos para creal una lista con los caracteres que se suele repetir en la columna y asi poder extraer el texto que este relacionado con los nombres clave
+patron_meses <- paste(nombres_ordenados, collapse = "|")
+
+df_harvest <- datos_cafe %>%
+  mutate(
+    harvest_year_nuevo = str_to_lower(harvest_year),    # Convertimos en minusculas los caracteres en la columna
+    # Usamos la funcion case_when para detectar cuando haya 2 años separados por caracteres, por ejemplo: december 2009-march 2010
+    harvest_anio = case_when(
+      # Primero detectamos si hay años separados por caracteres
+      str_detect(harvest_year_nuevo, "\\d{4}.*\\d{4}") ~ {
+        # En caso de que los haya extraemos todos los números de 4 dígitos que encuentre
+        anios_extraidos <- str_extract_all(harvest_year_nuevo, "\\d{4}")
+        # Luego los unimos usando un guion para formar "2009-2010"
+        sapply(anios_extraidos, function(x) paste(x, collapse = "-"))},
+      
+      # Si no estamos en el caso anterior entonces se extraen los numeros que se encuentren como 2012 o rangos como 2015/2016 y 2015-2016
+      TRUE ~ str_extract(harvest_year_nuevo, "\\d{4}(\\s*[-/\\s]\\s*\\d{4})?")),
+    
+    # Usamos str_replace_all para que elimine todos los espacios en los rangos años que encuentre, como 2010 - 2011
+    harvest_anio = str_replace_all(harvest_anio, "\\s*", ""),
+    
+    # Para los meses extraemos los strings que coincidan con el patron de meses que hicimos anteriormente
+    mes_extraido = str_extract(harvest_year_nuevo, patron_meses),
+    # Usamos recode para cambiar a español los meses o rangos de meses que se hayan extraido
+    harvest_mes = recode(mes_extraido, !!!diccionario_meses)) %>% 
+  # Para crear las columnas harvest_anio y harvest_mes creamos columnas adicionales asi que las vamos a quitar
+  dplyr::select(-harvest_year_nuevo, -mes_extraido)
+```
+
+```{r}
+# Comprobaamos
+df_harvest |> dplyr::select(harvest_year, harvest_anio, harvest_mes)
+```
+
+sintaxis python
+
+```{python}
+import pandas as pd
+import re
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+df_cafe = pd.read_csv("coffee_ratings.csv")
+```
+
+```{python}
+# Creamos nuestro diccionario con los nombres en español
+diccionario_meses = {"january": "Enero", "february": "Febrero", "march": "Marzo",
+    "april": "Abril", "abril": "Abril", "may": "Mayo", "june": "Junio",
+    "july": "Julio", "august": "Agosto", "september": "Septiembre",
+    "sept": "Septiembre", "october": "Octubre", "november": "Noviembre",
+    "december": "Diciembre", "may-august": "Mayo - Agosto",
+    "december 2009-march 2010": "Diciembre - Marzo",
+    "sept 2009 - april 2010": "Septiembre - Abril",
+    "august to december": "Agosto - Diciembre", "mayo a julio": "Mayo - Julio",
+    "fall": "Octubre - Diciembre", "spring": "Marzo - Mayo"}
+
+# Ordenamos las llaves por longitud para evitar el problema con los casos como january y january through april
+nombres_ordenados = sorted(diccionario_meses.keys(), key=len, reverse=True)
+# Creamos nuestro patron de meses
+patron_meses = "|".join(nombres_ordenados)
+
+
+# Crearemos unas funciones para poder obtener el año y mes de la columna harvest_year
+
+def extraer_anio(texto):
+    if pd.isna(texto):
+        return None
+
+    texto_minuscula = str(texto).lower()
+
+    # Con re.search buscaremos dos años separados por caracteres, por ejemplo     december 2009-march 2010
+    if re.search(r"\d{4}.*\d{4}", texto_minuscula):
+        # Obtenemos todos los años que encuentre
+        anios_separados = re.findall(r"\d{4}", texto_minuscula)
+        # Y despues los unimos con un guion
+        return "-".join(anios_separados)
+
+    # Para los demas años buscamos de la siguiente manera
+    anios = re.search(r"\d{4}(\s*[-/\s]\s*\d{4})?", texto_minuscula)
+    if anios:
+        # Quitamos los espacios en blanco internos
+        return re.sub(r"\s*", "", anios.group(0))
+
+    return None
+
+
+def extraer_mes(texto):
+    if pd.isna(texto):
+        return None
+
+    texto_minuscula = str(texto).lower()
+
+    # Buscamos la coincidencia del patron de meses
+    match = re.search(patron_meses, texto_minuscula)
+    if match:
+        mes = match.group(0)
+        # Traducimos usando el diccionario
+        return diccionario_meses[mes]
+
+    return None
+
+
+# Ahora aplicamos las funciones al dataFrame con appy()
+df_cafe["harvest_anio"] = df_cafe["harvest_year"].apply(extraer_anio)
+df_cafe["harvest_mes"] = df_cafe["harvest_year"].apply(extraer_mes)
+```
+
+```{python}
+# Comprobamos
+df_cafe[["harvest_year", "harvest_anio", "harvest_mes"]]
+```
+
+¿Cuántas observaciones llevaron a ambiguedad para crear las nuevas columnas?
+
+1.  En la columna harvest_year la gran mayoria de los renglones no tienen mes, por lo que la columna de harvest_mes tendra muchos NA's
+2.  Hay algunos formatos de fecha distintos, como 4T/10, 3t/2011
+3.  Algunos datos vienen en las estaciones del año cuando se cultivo el cafe, por ejemplo: fall, spring. En estos casos les asignaremos un rango de meses que corresponda a estas estaciones.
+4.  Hay rangos de años y meses, por ejemplo: 2015/2016, August to December.
+
+Ejercicio 6 (sintaxis r)
+
+```{r}
+head(datos_cafe["color"])
+```
+
+```{r}
+df_cafe_color2 <- datos_cafe %>%
+  mutate(color2 = recode(color,
+    "Green"        = "#00FF66",
+    "Bluish-Green" = "#CCEBC5",
+    "Blue-Green"   = "#BFFFFF",
+    .default       = NA_character_ ))
+df_cafe_color2
+```
+
+```{r}
+df_cafe_color2 |> dplyr::select("color", "color2")
+```
+
+```{r}
+# Tomaremos total_cup_points > 0 ya que hay un punto que modifica un poco la visualizacion
+df_cafe_color2 |> filter(total_cup_points > 0) |> 
+  ggplot(aes(x = total_cup_points, y = acidity, color = color)) +
+  geom_point() +
+  # Agregamos los colores para la visualizacion
+  scale_color_manual(values = c("Green" = "#00FF66", 
+                                "Bluish-Green" = "#CCEBC5", 
+                                "Blue-Green" = "#BFFFFF")) + 
+  theme_light()
+```
+
+```{r}
+df_cafe_color2 |> filter(total_cup_points > 0) |> 
+  ggplot(aes(x = total_cup_points, y = acidity, color = color)) +
+  geom_point() +
+  scale_color_manual(values = c("Green" = "#00FF66", 
+                                "Bluish-Green" = "#CCEBC5", 
+                                "Blue-Green" = "#BFFFFF")) + 
+  facet_wrap(~color2) +
+  theme_light()
+```
+
+Sintaxis python
+
+```{python}
+# haciendo la columna de color2 en python
+# Creamos un diccionario para despues mapear los colores a su respectivo cambio
+colores = {"Green": "#00FF66", "Bluish-Green": "#CCEBC5", "Blue-Green": "#BFFFFF"}
+
+# Creamos la nueva columna color2
+# .map() busca el valor en el diccionario; si no existe, pone NaN
+df_cafe['color2'] = df_cafe['color'].map(colores)
+ 
+print(df_cafe[['color', 'color2']])
+```
+
+```{python}
+
+# Tomamos total_cup_points > 0
+df_filtrado = df_cafe[df_cafe["total_cup_points"] > 0]
+
+# Creamos un diccionario para poder asignar los colores
+colores_cafe = {"Green": "#00FF66","Bluish-Green": "#CCEBC5",
+"Blue-Green": "#BFFFFF"}
+
+# Cinfiguramos el grafico 
+plt.figure(figsize=(8, 8))  
+sns.scatterplot(data=df_filtrado,
+                x="acidity",
+                y="total_cup_points",
+                hue="color",
+                palette=colores_cafe)
+
+# Agregamos unas etiquetas
+plt.xlabel("Total Cup Points")
+plt.ylabel("Acidity")
+plt.title("Relación entre Puntaje y Acidez por Color del Café")
+
+plt.show()
+```
+
+En ambas visualizaciones podemos ver que hay una correlación positiva entre las variables "total_cup_point" y "acidity", es decir, a mayor puntos todales mayor es la acidez del cafe. Además pordemos ver que el color verde predomina en los datos registrados.
+
+# Actividades 7 y 8
+
+#### Elabore una visualización de densidad con {ggplot2} de la variable bag_weight2 diferenciando a los valores de species.
+
+Observamos las especies de cafe.
+
+```{r}
+unique(coffee$species) #observar las especies
+```
+
+-   Arabica: suele representar cafes de mayor calidad, especialidad y origen.
+
+-   Robusta: representa el cafe de consumo comercial.
+
+Damos un vistazo a estas dos columnas:
+
+```{r}
+df_mod %>%
+  select( bag_weight, bag_weight2)
+```
+
+```{r}
+summary(df_mod$bag_weight2)
+```
+
+-   la mediana es de 50 y la media es de 182.6.
+
+-   el valor maximo registrado es de 19200, este valor representa un valor atipico extremo, ya que es muy superior al resto de los datos y provocara una distorsion en la distribucion de la variable.
+
+Por lo tanto, para obtener una visualizacion mas clara y representativa en la grafica de densidad, se van a considerar unicamente los valores menores a 300, excluyendo asi el outlier de 19200.
+
+```{r}
+df_mod %>% 
+  filter(bag_weight2 < 300) %>% #nos quedamos solo con pesos menores a 300 
+  ggplot(aes(x = bag_weight2, fill = species)) +
+  
+    geom_density(alpha = 0.3) +
+    theme_minimal() +
+  
+    labs(title = "Distribucion de pesos por especie",
+      x = "Peso",
+      y = "Densidad",
+      fill = "Especie") +
+  
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+-   ambas especies presentan una distribucion bimodal, ya que se observan dos picos principales de densidad
+
+-   los datos provienen de dos poblaciones diferentes mezclados en uno solo, mostrando dos grupos, bolsas de pesan entre 2- 10, que pueden representar ventan por menudeo o pruebas
+
+-   y bolsas que pesan entre 60-75, que pueden representar las ventar por mayoreo o exportacion
+
+-   hay mas bolsas de Robusta con pesos intermedios-30, 40, 50 que en la variedad Arabica
+
+-   el peso no depende de la especie sino del canal de comercializacion
+
+-   la especie Arabica muestra una alta estandarizacion en sus procesos logisticos por sus picos muy definidos
+
+-   la especie Robusta presenta una mayor variabilidad en los pesos de sus bolsas
+
+-   aprox en el peso 80, la densidad disminuye rapidamente en ambas especies, por lo que existen pocos registros con pesos altos, aunque no consideremos el valor maximo, todavia quedan algunos bolsas pesadas, outliers moderados que son inusuales pero posibles
+
+Ahora veamos como se ve en Python, observamos bag_weight y bag_weight2 para comparar valores originales y convertidos.
+
+```{r}
+library(reticulate)
+py_run_string("
+import pandas as pd
+import matplotlib.pyplot as plt
+df =r.df_mod
+datos = pd.read_csv('coffee_ratings.csv')
+")
+```
+
+```{r}
+py_run_string("print(df[['bag_weight', 'bag_weight2']])")
+```
+
+```{r}
+py_run_string("print(df['bag_weight2'].describe())")
+```
+
+-   19200 es un valor atipico extremadamente grande comparado con el resto de los datos.
+
+-   eliminar pesos exageradamente altos para que la visualizacion represente mejor el comportamiento tipico de los datos es la mejor opcion.
+
+```{r}
+py_run_string("print(df['species'].value_counts())")
+```
+
+-   al tener 28 registros las visualizacion estara dominada por Arabica
+
+Ajusta la normalizacion `common_norm=False` en la visualizacion podemos comparar mejor.
+
+```{r}
+library(reticulate)
+
+py_run_string
+```
+
+```{r}
+library(reticulate)
+
+py_run_string("
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+
+df = r.df_mod  # Si df_mod ya existe en un chunk de R arriba
+
+datos_filtrados = df[df['bag_weight2'] < 300]
+
+plt.figure(figsize=(8,5))
+
+sns.kdeplot(
+  data=datos_filtrados,
+  x='bag_weight2',
+  hue='species',
+  fill=True,
+  alpha=0.3,
+  common_norm=False,
+  bw_adjust=0.8
+)
+
+plt.title('Distribucion de pesos por especie')  # Una sola comilla al final
+plt.xlabel('Peso')
+plt.ylabel('Densidad')
+plt.show()
+")
+```
+
+-   presenta un fuerte desbalance entre especies, ya que la variedad Arabica concentra casi la totalidad de las observaciones
+
+-   presenta una estructura bimodal dominada principalmente por la especie Arabica
+
+-   con una cantidad muy reducida de registros de Robusta, limita la capacidad de realizar comparaciones entre las especies
+
+-   la presencia de picos de densidad en Arabica indica una posible estandarizacion en ciertos pesos de las bolsas, mientras que los pocos registros de pesos elevados corresponden a casos poco frecuentes pero posibles
+
+# Actividad 8: Elabore una visualización que relacione el año/mes de expiración con el total_cup_points sólo de los granos mexicanos, brasileños, colombianos y guatemaltecos.
+
+```{r}
+head(coffee$expiration) #primeros valores
+```
+
+-   las fechas de expiracion se encuentran almacenadas en formato de texto, incluyendo el mes, dia y año
+
+-   es necesario convertir la variable a formato fecha para poder extraer correctamente el año y el mes
+
+```{r}
+library(lubridate)
+datos <- coffee %>%
+  mutate(fecha = mdy(expiration)) #permite convertir las fechas almacenadas como texto al formato de fecha
+
+head(datos$fecha) #observamos la conversion de la fecha
+```
+
+Se creo una nueva variable llamada fecha a partir de la columna `expiration` y de la fecha solo se extra el mes y año.
+
+```{r}
+datos <- datos %>%
+  mutate( year= year(fecha), #extraer año de la fecha
+    mes = month(fecha, label = TRUE)) #extraer mes abreviado
+```
+
+Se filtra unicamente los paises que nos interesan, en este caso Mexico, Brasil, Colombia y Guatemala
+
+```{r}
+paises <- c("Mexico", "Brazil", "Colombia", "Guatemala")
+
+datos_filtrados <- datos %>%
+  filter(country_of_origin %in% paises) #filtramos solo esos paises
+
+datos_filtrados %>%
+  select("country_of_origin", "mes", "year")
+```
+
+```{r}
+datos_filtrados %>%
+  count(year) #cuenta los registros por año
+```
+
+-   existen años con muchos registros, como 2013 con 268 observaciones, mientras que otros presentan muy pocos datos, como 2011 con 9 registros y 2019 con solo 2
+
+-   es por ello que no vamos a considerar la variable mes, si se incluyera la variable mensual, los datos quedarian demasiado fragmentados, generando meses con muy pocas observaciones e incluso sin registros, lo que dificultaria identificar patrones claros y realizar comparaciones
+
+boxplot representa una de las mejores opciones de visualizacion, ya que permitira comparar la distribucion de `total_cup_points` entre distintos años, detectar posibles valores atipicos y analizar diferencias entre grupos aun cuando la cantidad de registros por año no sea la misma
+
+```{r, fig.width=12, fig.height=8}
+ggplot(datos_filtrados,
+       aes(x = factor(year), #año como categorias
+           y = total_cup_points,
+           fill = country_of_origin)) +
+
+  geom_boxplot(alpha = 0.8, outlier.alpha = 0.6) + #valores atipicos visibles
+
+  facet_wrap(~ country_of_origin) + #grafica por pais
+
+  theme_minimal(base_size = 14) +
+
+  labs(title = "Distribucion de total cup points por año de expiracion",
+    x = "Año de expiracion",
+    y = "Total cup points") +
+
+  theme(legend.position = "none", plot.title = element_text(hjust = 0.5))
+```
+
+-   los valores de `total_cup_points` se concentran aprox entre 80 y 85 puntos en los cuatro paises
+
+-   Colombia parece tener la distribucion mas estable y homogenea
+
+-   Guatemala y Colombia tienen los puntajes mas altos
+
+-   Guatemala y Mexico presentan mayor presencia de valores atipicos y tienen mas outliers hacia abajo, lo que significa que es mas probable encontrar alguna bolsa de baja calidad ahi que en Brasil
+
+-   en el año 2013 para Guatemala y Mexico se observa anomalias, bigotes extendidos y la presencia de valores atipicos, investigando un poco esto se debe a que en el año 2013, la produccion de cafe en Mexico y Guatemala enfrento desafios, principalmente debido a la crisis de la roya (2012-2016) que afecto dichas regiones
+
+-   las medianas de muchos años se superponen entre paises, lo que indica que las diferencias generales en calidad no son extremadamente grandes
+
+-   los años 2011 y 2019 presentan cajas compactas debido a que tienen muy pocos registros
+
+-   se observa una asimetria negativa con mas valores atipicos hacia abajo que hacia arriba, esto se debe a que los puntajes altos son difícil de alcanzar y requiere condiciones perfectas, mientras que la calidad es sumamente vulnerable a errores en la produccion del cafe que pueden arruinar bolsas facilmente
+
+Visualizamos en python:
+
+```{r}
+library(reticulate)
+py_run_string("
+import pandas as pd
+import matplotlib.pyplot as plt
+
+datos = pd.read_csv('coffee_ratings.csv')
+")
+```
+
+Observamos como estan almacenadas las fechas originalmente
+
+```{r}
+py_run_string("print(datos['expiration'].head())")
+```
+
+Convertimos dichos valores a formato fecha
+
+```{r}
+py_run_string("
+datos['fecha'] = pd.to_datetime(datos['expiration'], format='mixed', errors='coerce')
+print(datos['fecha'].head())")
+```
+
+Ahora se va a extrae unicamente el año y se almacena en una nueva columna llamada year. Solo se utiliza la variable year, si no dificultaria la interpretacion visual, filtrando los paises.
+
+```{r}
+py_run_string("
+datos['year'] = datos['fecha'].dt.year
+
+paises = ['Mexico', 'Brazil', 'Colombia', 'Guatemala']
+datos_filtrados = datos[ datos['country_of_origin'].isin(paises)]")
+```
+
+Visualizamos en una grafica.
+
+```{r}
+py_run_string("fig, axes = plt.subplots(1, 4, figsize=(15, 7), sharey=True) #creamos la figura
+
+#ciclo para graficar cada pais
+for i, pais in enumerate(paises):
+    df_pais = datos_filtrados[datos_filtrados['country_of_origin'] == pais]
+    
+    años = sorted(df_pais['year'].unique()) #agrupar datos por año
+    datos_boxplot = [df_pais[df_pais['year'] == a]['total_cup_points'].dropna() for a in años]
+    
+    mis_colores = ['skyblue', 'purple', 'lightgreen', 'gold']
+    bp = axes[i].boxplot(datos_boxplot, patch_artist=True, labels=años, widths=0.6)
+    for box in bp['boxes']:
+        box.set(facecolor=mis_colores[i], edgecolor='black')
+    
+    #titulos y rotacion
+    axes[i].set_title(pais)
+    axes[i].tick_params(axis='x', rotation=90)
+    axes[i].grid(axis='y', linestyle='--', alpha=0.3)
+
+axes[0].set_ylabel('Total Cup Points')
+fig.suptitle('Distribucion de Total Cup Points por año de expiracion', fontsize=14)
+
+plt.subplots_adjust(left=0.08, right=0.95, top=0.88, bottom=0.15, wspace=0.3)
+plt.show()")
+```
+
+-   Colombia presenta una de las distribuciones mas consistentes, las medianas se mueven hacia arriba gradualmente y permanecen estables entre 82 y 84 puntos
+
+-   existen algunos valores atipicos bajos, mas en 2015
+
+-   entre 2014 y 2018, las cajas estan casi a la misma altura y las medianas se cruzan entre ellas, lo que indica una estabilidad en la calidad del cafe colombiano, casi no cambia año con año
+
+-   sus cajas son muy compactas, indica poca variabilidad
+
+-   casi no tienen bigotes largos hacia abajo, a excepcion de 2017, lo cual habla de un control de calidad riguroso
+
+-   las medianas de Brasil rondan entre 81 y 84 puntos
+
+-   en 2016 y 2018 aparecen los outliers mas bajos
+
+-   Brasil empezo muy alto en 2011, pero luego tuvo una caida y se estabilizo
+
+-   a partir de 2013, sus medianas son muy parecidas, lo que indica que su produccion es muy consistente, aunque un poco por debajo de su inicio
+
+-   algunas cajas de Guatemala son mas amplias, especialmente las de 2013 y 2015, esto podría indicar coexistencia de bolsas de calidad muy alta junto con algunas bolsas considerablemente inferiores
+
+-   las medianas se mantienen relativamente altas, alrededor de 82–84 puntos
+
+-   el cafe de Guatemala tiene un bigote inferior enorme y outlier hasta abajo en los 60 puntos en 2013, eso significa que ese año hubo bolsas muy malas que bajaron el promedio, aunque la mediana se mantuvo cerca de 82
+
+-   Mexico en 2011–2013 las medianas son mas bajas, entre 2014 y 2018 las cajas se vuelven mas compactas, las medianas aumentan ligeramente y permanecen cerca de 82–83 puntos
+
+-   se observan varios outliers bajos entre 2013 y 2015, lo que sugiere que algunos lotes específicos tuvieron menor calidad comparados con el resto
+
+-   Mexico presenta mucha variabilidad inicial, hay cajas mas grandes en 2011-2013
+
+-   a partir de 2016 las cajas se hacen mas pequeñas y se alinean, mejora con los años
+
+# Actividad 9 y 10
+
+Se tiene una visualización con {ggplot2} que relacione el mes de expiración con el `altitude_mean_meters`, `altitude_low_meters` y `altitude_high_meters` sólo de los granos mexicanos, brasileños, colombianos y guatemaltecos de los años de expiración 2016 y 2017. Se tiene una visualización con {ggplot2} que relacione el `aftertaste`, `acidity`, `body` y `species` en un mismo canvas.
+
+```{r}
+install.packages("sqldf")
+```
+
+```{r}
+library(DBI)
+library(dbplyr)
+library(dplyr)
+library(RSQLite)
+library(sqldf)
+library(readr)
+library(lubridate)
+
+library(tidyr)
+library(ggplot2)
+
+library(reticulate)
+
+
+```
+
+###### OJO ESTE CHUNK VIENE EN LA PARTE ANTERIOR
+
+```{r}
+#################################### OJO ESTA PARTE NO ES NECESARIA #################################### 
+#################################### ESTÁ EN LA PREGUNTA ANTERIOR #################################### 
+coffee <- readr::read_csv("coffee_ratings.csv")
+datos <- coffee %>%
+  mutate(fecha = mdy(expiration)) #permite convertir las fechas almacenadas como texto al formato de fecha
+
+datos <- datos %>%
+  mutate( year= year(fecha), #extraer año de la fecha
+    mes = month(fecha, label = TRUE)) #extraer mes abreviado
+```
+
+Actividad 9: Elabore una visualización con ggplot2 que relacione el mes de expiración con el altitude_mean_meters, altitude_low_meters y altitude_high_meters sólo de los granos mexicanos, brasileños, colombianos y guatemaltecos de los años de expiración 2016 y 2017.
+
+```{r}
+
+# Filtrando por País y año de expiracion 
+df_plot <- datos %>%
+  filter(
+    country_of_origin %in% c("Mexico", "Brazil", "Colombia", "Guatemala"),
+    year %in% c(2016, 2017)
+  )
+
+
+```
+
+Se crea una gráfica de barras que meustra el promedio de altitud (media baja y alta) por mes de expiración. - La altura de las barras representa el promedio de altura media. - Las lineas muestran el promedio de altitud baja y alta.
+
+```{r}
+# Calculando promedio de altiud low, mean y high por mes de expiracion
+df_plot <- df_plot %>%
+  group_by(mes) %>%
+  summarise(
+    promedio_mean = mean(altitude_mean_meters, na.rm = TRUE),
+    promedio_low = mean(altitude_low_meters, na.rm = TRUE),
+    promedio_high = mean(altitude_high_meters, na.rm = TRUE)
+  )
+
+# Creando gráfica de barras
+# - En el eje X, mes de expiracion
+# - En el eje Y, el promedio de la altura promedio es la altuira de la barra, 
+#   las "barras de error" muestran el promedio del low y high altitude. 
+
+# Creando barras y "barras de error"
+ggplot(df_plot, aes(x = mes, y = promedio_mean)) +
+  geom_col() +
+  geom_errorbar(aes(
+    ymin = promedio_low,
+    ymax = promedio_high
+  ),
+  width = 0.5
+  ) +
+  # Agregando titulos y ejes
+  labs(
+    title = "Altitud promedio por mes de expiración",
+    subtitle = "Barra = Altitud promedio,  Línea = Rango promedio",
+    x = "Mes de expiración",
+    y = "Altitud [metros]"
+  ) 
+```
+
+Graficando en Python
+
+Esta gráfica se recomienda correr el .qmd en rstudio o positcloud, ya que la visualización la hace en el navegador de internet, siendo la gráfica de altitud promedio y mes de expiración:
+
+```{r}
+
+library(reticulate)
+py_require("plotly")
+```
+
+```{r}
+library(reticulate)
+
+py_run_string('
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+
+
+datos = pd.read_csv("coffee_ratings.csv")
+
+df_plot = datos.copy()
+
+# Convirtiendo a expiration_date en fecha
+df_plot["expiration_date"] = pd.to_datetime(datos["expiration"], format="mixed", errors="coerce")
+
+# Creando columna de anno y mes de expiacion
+df_plot["expiration_year"] = df_plot["expiration_date"].dt.year
+df_plot["expiration_month"] = df_plot["expiration_date"].dt.month_name()
+
+# Filtrando por pais y anno de expiracion
+df_plot = df_plot[
+    (df_plot["country_of_origin"].isin(["Mexico", "Brazil", "Colombia", "Guatemala"])) &
+    (df_plot["expiration_year"].isin([2016, 2017]))
+]
+
+# Resumen por mes de expiracion
+df_plot = df_plot.groupby("expiration_month", as_index=False).agg(
+    promedio_mean=("altitude_mean_meters", "mean"),
+    promedio_low=("altitude_low_meters", "mean"),
+    promedio_high=("altitude_high_meters", "mean")
+)
+
+# expiration_month se convierte en variable categorica para graficar en orden
+orden_meses = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+]
+
+df_plot["expiration_month"] = pd.Categorical(
+    df_plot["expiration_month"],
+    categories=orden_meses,
+    ordered=True
+)
+
+# Se ordena la tabla por expiration_month
+df_plot = df_plot.sort_values("expiration_month")
+
+# creando grafica de barras
+fig1 = go.Figure()
+
+fig1.add_trace(
+    go.Bar(
+        x=df_plot["expiration_month"],
+        y=df_plot["promedio_mean"],
+        # Agregando "barra de error"
+        error_y=dict(
+            type="data",
+            symmetric=False,
+            array=df_plot["promedio_high"] - df_plot["promedio_mean"],
+            arrayminus=df_plot["promedio_mean"] - df_plot["promedio_low"]
+        ),
+        name="Altitud promedio"
+    )
+)
+# Aggregando título
+fig1.update_layout(
+    title=dict(
+        text="Altitud promedio por mes de expiración<br>Barra = Altitud promedio, Línea = Rango promedio"
+    ),
+    xaxis_title="Mes de expiración",
+    yaxis_title="Altitud [metros]"
+)
+
+fig1.show()
+              ')
+
+```
+
+Actividad 10: Elabore una visualización con ggplot2 que relacione el `aftertaste`, `acidity`, `body` y `species` en un mismo canvas.
+
+Se crea un boxplot con los puntajes de aftertaste, acidity y body según la especie.
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Filtrando datos con acides, aftertaste y body = 0 para poder observar mejor la gráfica 
+df_plot <- datos %>%
+  filter(
+    acidity != 0,
+    aftertaste!=0 ,
+    body!=0
+  ) 
+# Cambiando formato de tabla para poder graficar
+df_plot <- df_plot %>%
+  pivot_longer(
+    cols = c(aftertaste, acidity, body),
+    names_to = "atributo",
+    values_to = "puntaje"
+  )
+# Graficando bocplot en el Eje x los distintos puntajes
+ggplot(df_plot, aes(x = atributo, y = puntaje, fill = species)) +
+  geom_boxplot() +
+  labs(
+    title = "Aftertaste, acidity y body según species",
+    x = "Atributo",
+    y = "Puntaje",
+    fill = "Especie"
+  )
+```
+
+-   Graficando en Python:
+
+Misma recomendación que la gráfica de expiración promedio, correr directo el .qmd en positcloud o rstudio, ya que la visualización la manda al navegador, siendo la gráfica de compración de atributos por especie:
+
+```{r}
+
+py_run_string('
+df_plot = datos[
+    ["species", "aftertaste", "acidity", "body"]
+].dropna()
+
+#Quitando datos con puntajes 0 para poder visualizar mejor el boxplot
+df_plot= df_plot[ (df_plot.aftertaste!= 0) | (df_plot.acidity!= 0) | (df_plot.body!= 0)]
+
+
+# Cambiando formato para poder graficar
+df_plot = df_plot.melt(
+    id_vars="species",
+    value_vars=["aftertaste", "acidity", "body"],
+    var_name="atributo",
+    value_name="puntaje"
+)
+
+# Plotly Boxplot
+fig2 = px.box(
+    df_plot,
+    x="atributo",
+    y="puntaje",
+    color="species",
+    title="Comparación de atributos sensoriales por especie"
+)
+
+# Ejes
+fig2.update_layout(
+    xaxis_title="Atributo sensorial",
+    yaxis_title="Puntaje"
+)
+
+fig2.show()
+              ')
+```
