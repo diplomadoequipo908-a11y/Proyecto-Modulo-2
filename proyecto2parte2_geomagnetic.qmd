@@ -1,0 +1,418 @@
+---
+title: "Proyecto Modulo 2 - Parte 2. Uso de API NASA"
+author: ["Becerra Ayala Anay", "Diaz Cuevas Bruno", "Patiño Gonzalez Brandon", "Olvera Galeana Enrique", "David Suarez Lopez"]
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    code-fold: true
+    theme: cosmo
+editor: visual
+---
+
+# Uso de API NASA
+
+## Sección Grupal
+
+$\mathbf{1.}$ $\textit{¿Qué tipo de parámetros admite la solicitud?}$
+
+```{r}
+install.packages("reticulate") #instalamos reticulate para uso de python en r
+```
+
+```{r}
+library(reticulate) #llamamos a la librería reticulate para sus funciones
+```
+
+Si queremos ver el tipo de solicitud que podemos hacer a la API de la NASA, debemos ver un parámetro que nos genere un error. Por eso, usaremos el siguiente código a continuación:
+
+```{r}
+library(reticulate)
+py_require("requests")
+requests <- import("requests")
+#ponemos el url y la clave del api NASA
+url <- "https://api.nasa.gov/planetary/apod"
+api_key <- "Ix1A2Afq7xLVMLcmbsWbkJMPmPRdYjaJT1zuBeFi"
+
+# daremos parámetro inventado para forzar el error
+r <- requests$get(url, params = list(api_key = api_key, t = "cerveza"))
+#cerveza es el parametro inventado
+#aquí definimos el status de la búsqueda en la api
+#400 para decir que el parametro no es válido
+cat("estatus code:", r$status_code, "\n")
+if(r$status_code == 400 ) {
+  print(r$json()$msg)
+} else if(r$status_code == 200 ){
+  print(r$json)
+#200 para parametro correcto
+} else {
+  cat(r$text) #pone los parámetros válidos que admite la api
+}
+```
+
+Al ingresar un parámetro no válido " $\textbf{t}$ = $\textbf{cerveza}$ ", nos dice que los parámetros válidos sin $\textbf{concept_tags}$, $\textbf{date}$, $\textbf{hd}$, $\textbf{count}$, $\textbf{start_date}$, $\textbf{end_date}$ y $\textbf{thumbs}$.
+
+$\mathbf{2.}$ ¿Qué tipo restricciones se pueden obtener con cada solicitud?
+
+Las restricciones de la API son 4000 solicitudes de respuesta, si acepta valores lógicos y regresa figuras de la API.
+
+```{r}
+library(reticulate) #siempre usaremos reticulate para el puente python
+py_require("requests")
+requests <- import("requests")#importamo la respuesta
+#se pone el url de la api y el parametro
+respuesta <- function(url, params) { 
+#hace lectura de nuestra api y el parámetro
+  r <- requests$get(url, params = params) 
+#si es python guarda el estatus de la solicitud
+  cat("status:", r$status_code, "| OK:", r$ok, "\n")
+  cat("tipo de contenido:", r$headers$get('Content'), "\n")
+#pedimos el tipo de contenido
+  if(!r$ok){
+    cat("error:\n")
+#si la respuesta es falsa, manda error
+    print(r$json())
+    return(invisible(NULL))
+  }
+#imprime nulo en caso de erro
+#usando python
+  cat("es python:", class(r$json())[1], "\n")
+
+#si hacemos la conversión a r
+  data <- r$json()
+#hace lectura de un json
+  cat("es r:", class(data), "\n")
+#toma los datos a los que accedió la API
+  cat("Forma o estructura:", if(is.null(names(data))) "lista sin nombres" else "Named list / dict", "\n")
+#nos pone el nombre de las listas
+  cat("cantidad:", length(data), "\n")
+#nos dice la cantidad de datos con esa búsqueda
+  if(length(data) > 0 && is.null(names(data))) {
+    cat(" llaves del primer elemento:", paste(names(data[[1]]), collapse = ", "), "\n")
+  } else if(!is.null(names(data))) {
+    cat(" llaves:", paste(names(data), collapse = ", "), "\n")
+  }
+
+  return(invisible(data))
+}
+```
+
+```{r}
+#nuestra búsqueda la hacemos una fecha de cumpleaños x
+#la url es para la API de NASA planetary apod
+#ya que si lo haces dki gst sale un error 503
+respuesta(
+  "https://api.nasa.gov/planetary/apod",
+  list(api_key = "Ix1A2Afq7xLVMLcmbsWbkJMPmPRdYjaJT1zuBeFi",
+       date = "1999-09-21")
+)
+```
+
+La API sólo regresa listas y diccionarios al hacer la búsqueda de cualquier cosa referentes a fechas, explicación, hdurls, media_typr y etc.
+
+$\mathbf{3.}$ ¿Qué tipo de resticciones tiene la API?
+
+```{r}
+#aquí solicitaremos la restricciones de la API planetary
+library(reticulate)
+py_require("requests")
+requests <- import("requests")
+
+restricciones <- function(r) {
+  limite <- r$headers$get('X-RateLimit-Limit') 
+#pedimos el número de solicitudes de la api
+  quedan <- r$headers$get('X-RateLimit-Remaining')
+#dedimos que cuente cuantas nos quedan de las permitidas  
+  cat("estatus:", r$status_code, "\n")
+#ponemos el estatus del error al correr el código si es por mala búsqueda
+#servidor inservible o exceso de solicitudes
+  cat("quedan:", quedan, "/", limite, "requests\n")
+#ponemos un stop de cuando las solicitudes se han excedido  
+  if (r$status_code == 429) {
+    espera <- r$headers$get('X-RateLimit-Reset')
+    stop("limite alcanzado alcanzado. Espera ", espera, " segundos")
+  }
+#ponemos el fallo de la NASA y disponibilidad de la api  
+  if (r$status_code >= 400) {
+    error <- r$json()
+    stop("fallo de la NASA ", error$code, ": ", error$msg)
+  }
+  
+  return(TRUE)
+}
+
+# se define url y parametros antes de usarlos
+url <- "https://api.nasa.gov/planetary/apod"
+params <- list(api_key = "Ix1A2Afq7xLVMLcmbsWbkJMPmPRdYjaJT1zuBeFi")
+
+r <- requests$get(url, params = params) #es nuestro vector de parámetro de consulta
+restricciones(r) #nos da las restricciones de la api
+data <- r$json() #guarda la información en un jason llamado data
+data$title #pedimos que nos muestre donde observa el parámetro
+```
+
+# Preguntas individuales
+
+$\mathbf{1.}$ $\textit{Para}$ $\textit{las}$ $\textit{búsquedas}$ $\textit{de}$ $\textbf{geomagnetic storm}$, $\textit{¿cuántos resultados obtuviste?}$
+
+El apellido al ser Patiño, toco hacer la investigación con la palabra Geomagnetic storm, volviendo al uso de reticulate y la API tenemos el siguiente código.
+
+```{r}
+#conteo de resultados para geomagnetic storm
+library(reticulate)
+py_require("requests")
+requests <- import("requests")
+
+url <- "https://api.nasa.gov/planetary/apod"
+params <- list(
+  api_key = "Ix1A2Afq7xLVMLcmbsWbkJMPmPRdYjaJT1zuBeFi", #clave de la api
+  start_date = "1999-10-20", # fecha tentativa de tormenta geomagnetica
+  end_date = "1999-10-22" # fecha tentativa
+)
+#creamos nuestro vector de parámetros para consulta
+r <- requests$get(url, params = params)
+cat("estatus:", r$status_code, "\n")
+#pedimos si existe un error en la investigación de la api
+if (r$status_code!= 200) {
+  cat("Error:", r$text, "\n")
+} else {
+  data <- py_to_r(r$json())
+
+#apod con rango de fechas regresa una lista
+  cat("Total de imágenes:", length(data), "\n\n")
+#cúantas imágenes hay con ese nombre
+  total_veces <- 0
+  for(i in 1:length(data)){
+    item <- data[[i]]
+    texto <- paste(item$title, item$explanation, collapse = " ")
+#pedimos que nos diga donde se usó la palabra geomagnetic storm en la api
+    veces <- lengths(regmatches(texto, gregexpr("geomagnetic storm", texto, ignore.case = TRUE)))
+    total_veces <- total_veces + veces
+#información de donde se asocia la palabra con fechas, títulos y repeticiones
+    cat("fecha:", item$date, "\n")
+    cat("título:", item$title, "\n")
+    cat("veces 'geomagnetic storm':", veces, "\n\n")
+  }
+  cat("total en todas las fechas:", total_veces, "\n")
+}
+```
+
+Si tomamos laa fechas del 20 al 22 de Octubre de 1999 cuando hubo tormenta solar, no dice que sólo hay tres imágenes, por ende, esta API no nos ayuda mucho, por ende, usaré el API pública de imágenes de la NASA para que nos arroje los resultados deseados como se verá a continuación:
+
+```{r}
+#código usando la api pública de la nasa sin key para api
+library(reticulate)
+py_require("requests")
+requests <- import("requests")
+#definimos nuestro parámetro para buscar geomagnetic storm en la api de imágenes
+url <- "https://images-api.nasa.gov/search"
+params <- list(q = "geomagnetic storm", media_type = "image")
+
+r <- requests$get(url, params = params)
+data <- py_to_r(r$json())
+items <- data$collection$items
+#pedimos que nos genere un json con info sobre el parametro q
+contador <- 0
+#cuenta las apariciones de q
+for(i in 1:length(items)){
+#nos da indfo de forma descendente
+  desc <- items[[i]]$data[[1]]$description
+  if(grepl("geomagnetic storm", desc, ignore.case = TRUE)){
+#pedimos que nos de el item del json, título
+    contador <- contador + 1
+    cat("encontrado en:", items[[i]]$data[[1]]$title, "\n")
+  }
+}
+cat("\nTotal de imágenes con 'geomagnetic storm':", contador, "\n")
+```
+
+Vemos que nos arroja 12 resultados de la búsqueda de geomagnetic storm y fue encontrado en distintos contextos textuales de la API.
+
+$\mathbf{2.}$ $\textit{Para las búsqueda de geomagnetic storm, ¿en qué rangos de fechas se introdujo el recurso?}$
+
+```{r}
+library(reticulate)
+py_require("requests")
+requests <- import("requests")
+
+url <- "https://images-api.nasa.gov/search"
+params <- list(q = "geomagnetic storm", media_type = "image")
+
+r <- requests$get(url, params = params)
+data <- py_to_r(r$json())
+items <- data$collection$items
+
+contador <- 0
+fechas <- c() # Vector para guardar todas las fechas
+
+for(i in 1:length(items)){
+  desc <- items[[i]]$data[[1]]$description
+  if(grepl("geomagnetic storm", desc, ignore.case = TRUE)){
+    contador <- contador + 1
+    titulo <- items[[i]]$data[[1]]$title
+    fecha <- substr(items[[i]]$data[[1]]$date_created, 1, 10) # Solo YYYY-MM-DD
+    fechas <- c(fechas, fecha)
+
+    cat("Encontrado en:", titulo, "| Fecha:", fecha, "\n")
+  }
+}
+
+cat("\nTotal de imágenes con 'geomagnetic storm':", contador, "\n")
+
+# Convertir a formato fecha para sacar min y max
+fechas_date <- as.Date(fechas)
+cat("Fecha más antigua:", as.character(min(fechas_date)), "\n")
+cat("Fecha más reciente:", as.character(max(fechas_date)), "\n")
+cat("Rango:", as.character(min(fechas_date)), "a", as.character(max(fechas_date)), "\n")
+```
+
+El rango de fechas está entre 1991-05-01 hasta 2026-01-19 para la búsqueda de la palabra geomagnetic storm.
+
+$\mathbf{3.}$ $\textit{Para las búsqueda de geomagnetic storm, ¿cuáles son los "media_type" más comunes?}$
+
+Para ver los media_type más comunes usamos el siguiente código para la API:
+
+```{r}
+#código para la búsqueda archivos de la palabra geomagnetic storm
+library(reticulate)
+py_require("requests")
+requests <- import("requests")
+#creamos nuestro vector de solicitud api con geosmagnetic storm
+url <- "https://images-api.nasa.gov/search"
+params <- list(q = "geomagnetic storm") # Quita media_type para que traiga todo
+#haga consulta en un archivo json
+r <- requests$get(url, params = params)
+data <- py_to_r(r$json())
+items <- data$collection$items
+#pedimos la lectura de cada objeto del json
+for(i in 1:min(10, length(items))){ # solo objetos pedimos 10
+  item_data <- items[[i]]$data[[1]] #nos da fecha del item
+  titulo <- item_data$title #da el título de cada item
+  tipo <- item_data$media_type #definimos el tipo está el tipo
+
+  cat("Título:", titulo, "\n") #el título en el que encontró
+  cat("Tipo:", tipo, "\n") #el tipo del item
+  cat("NASA ID:", item_data$nasa_id, "\n\n") #pedimos el id de la nasa
+}
+```
+
+A ojo de buen cubero parece que hay más imágenes que vídeo, lo verificaremos con un contador:
+
+```{r}
+#hacemos el contador para geomagnetic storm
+library(reticulate)
+py_require("requests")
+requests <- import("requests")
+#vector de consulta api
+url <- "https://images-api.nasa.gov/search"
+params <- list(q = "geomagnetic storm")
+#pedimos que lea y guarde en un json de la api los datos
+r <- requests$get(url, params = params)
+data <- py_to_r(r$json())
+items <- data$collection$items
+#abrimos unos vectores para fechas y tipos, lo que facilita el conteo
+tipos <- c()
+fechas <- c()
+#hacemos for para cada recurso y llevar el conteo
+for(i in 1:length(items)){
+  desc <- items[[i]]$data[[1]]$description
+  if(grepl("geomagnetic storm", desc, ignore.case = TRUE)){
+    tipos <- c(tipos, items[[i]]$data[[1]]$media_type)
+    fechas <- c(fechas, substr(items[[i]]$data[[1]]$date_created, 1, 10))
+  }
+}
+#pedimos que se face la consulta por fechas y tipo con la solicitud de la palabra geomagnetic
+cat("Total de resultados:", length(tipos), "\n") #nos da el conteo final del json 
+print(table(tipos)) # Esto te cuenta automático
+
+```
+
+En efecto, hay más imágenes que vídeos en la búsqueda hecha por nuestra API. Tenemos 15 objetos, 12 imágenes y 3 vídeos.
+
+$\mathbf{4.}$ $\textit{Para las búsqueda geomagnetic storm, ¿quiénes son los autores o instituciones propietaria de los derechos (i.e. el copyright)?}$
+
+Veremos a quiénes les pertenece o son autares de los media_type que encontramos en la API:
+
+```{r}
+#código para ver autor u origen de los archivos
+library(reticulate)
+py_require("requests")
+requests <- import("requests")
+#hacemos nuestro vector api
+url <- "https://images-api.nasa.gov/search"
+params <- list(q = "geomagnetic storm", media_type = "image")
+#usamos el dato más abundante que es image
+r <- requests$get(url, params = params)
+data <- py_to_r(r$json())
+items <- data$collection$items
+#pedimos que lea la api con los parámetros de búsqueda de la api
+for(i in 1:length(items)){
+  desc <- items[[i]]$data[[1]]$description
+  if(grepl("geomagnetic storm", desc, ignore.case = TRUE)){
+    item <- items[[i]]$data[[1]]
+#hace el conteo de los parámetros image con título, fecha y ID de la NASa
+    cat("=== ", item$title, " ===\n")
+    cat("NASA ID:", item$nasa_id, "\n")
+    cat("Fecha:", substr(item$date_created, 1, 10), "\n")
+    cat("Centro:", item$center, "\n") # GSFC, JPL, JSC, etc
+#pedimos info de fecha, proveniencia, artículo y ID de la NASA
+    # Estos campos a veces vienen vacíos
+    if(!is.null(item$photographer)) cat("Fotógrafo:", item$photographer, "\n")
+#pedimos info del fotografo
+#o de los creadores asocidados
+    if(!is.null(item$secondary_creator)) cat("Autor:", item$secondary_creator, "\n"
+)
+    if(!is.null(item$keywords)) cat("Keywords:", paste(item$keywords, collapse = ", "), "\n")
+
+    cat("Tipo:", item$media_type, "\n\n")
+  }
+}
+```
+
+```{r}
+library(reticulate)
+py_require("requests")
+requests <- import("requests")
+
+url <- "https://images-api.nasa.gov/search"
+params <- list(q = "geomagnetic storm", media_type = "image")
+#creamos nuestro vector api con la info
+r <- requests$get(url, params = params)
+data <- py_to_r(r$json())
+items <- data$collection$items
+#hacemos ciclo for para el conteo en json de la consulta de nuestra api
+for(i in 1:length(items)){
+  desc <- items[[i]]$data[[1]]$description
+  if(grepl("geomagnetic storm", desc, ignore.case = TRUE)){
+    item <- items[[i]]$data[[1]]
+#nos arroja todos los items con la info que deseamos de los autores
+    cat("=== ", item$title, " ===\n")
+    cat("NASA ID:", item$nasa_id, "\n")
+    cat("Fecha:", substr(item$date_created, 1, 10), "\n")
+    cat("Centro:", item$center, "\n")
+
+#autoro otógrafo - checa si existe el campo
+    if(!is.null(item$photographer) && item$photographer!= ""){
+      cat("Fotógrafo:", item$photographer, "\n")
+    } else if(!is.null(item$secondary_creator) && item$secondary_creator!= ""){
+      cat("Autor:", item$secondary_creator, "\n")
+    } else {
+      cat("Autor: NASA/", item$center, "\n") # Default si no hay nombre
+    }
+#pedimos información del centro de investigación
+    if(!is.null(item$keywords)){
+      cat("Keywords:", paste(item$keywords, collapse = ", "), "\n")
+    }
+    cat("Tipo:", item$media_type, "\n")
+    cat("Link:", paste0("https://images.nasa.gov/details/", item$nasa_id), "\n\n")
+  }
+}
+```
+
+Tenemos que las imágenes vienen de distintos centros de investigación de la NASA, es decir:
+
+JSC: Centro Espacial Johnson
+
+GSFC: Centro Espacial de Vuelo Goddard
+
+MSFC: Centro Espacail de Vuelo Marshall
