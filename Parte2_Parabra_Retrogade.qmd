@@ -1,0 +1,306 @@
+---
+title: "Proyecto Modulo 2 - Parte 2. Palabra: Retrogade"
+author: ["Becerra Ayala Anay"]
+format: 
+  html:
+    embed-resources: true
+    toc: true
+    code-fold: true
+    theme: cosmo
+editor: visual
+---
+
+```{r}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+```
+
+```{r}
+library(reticulate)
+```
+
+```{r}
+#py_install(c("pandas", "matplotlib", "requests"))
+```
+
+```{r}
+py_run_string("
+import pandas as pd # manejar tablas, limpiar datos y crear el csv
+import matplotlib.pyplot as plt
+import requests
+import time
+from datetime import datetime, timedelta
+")
+```
+
+- para poder realizar solicitudes a la API APOD de la NASA, es necesario instalar la libreria `requests` en python, porque permite establecer comunicacion entre el programa en python y el servidor de la API
+
+- para obtener informacion desde la API, hacemos una solicitud HTTP utilizando la libreria `requests` y establecer una conexion y recupera los datos
+
+```{r}
+py_run_string('
+import os
+import pandas as pd
+from datetime import datetime, timedelta
+import requests
+import time
+
+# nombre del archivo donde se guardan los datos
+archivo_local = "datos_apod.csv"
+
+# revisamos si el archivo ya existe para no repetir la descarga
+if os.path.exists(archivo_local):
+    print("¡Ya tienes los datos guardados! Cargando archivo local...")
+    tabla = pd.read_csv(archivo_local)
+    print("Total de registros cargados con éxito:", len(tabla))
+
+else:
+    # si el archivo no existe se inicia la descarga desde internet
+    print("No encontré el archivo local. Iniciando descarga desde la API de la NASA...")
+
+    clave_api = "gAOe9MAeZbWh23HpjGBnIrxEVLmdeVaxf9dHsykO"
+    url = "[https://api.nasa.gov/planetary/apod](https://api.nasa.gov/planetary/apod)"
+
+    fecha_inicio = datetime(1995, 6, 16) #rango de tiempo
+    fecha_final = datetime(2026, 4, 30)
+
+    bloque = timedelta(days=100) #intervalo de tiempo para evitar saturacion en la api
+
+    lista_datos = [] #lista donde se guardan los datos
+
+    while fecha_inicio <= fecha_final:
+        
+        if (fecha_inicio + bloque) > fecha_final: # definir el ultimo bloque para que no sobrepase la fecha final definida
+            fecha_fin_bloque = fecha_final
+        else:
+            fecha_fin_bloque = fecha_inicio + bloque
+
+        parametros = { #requisitos
+            "api_key": clave_api,
+            "start_date": fecha_inicio.strftime("%Y-%m-%d"),
+            "end_date": fecha_fin_bloque.strftime("%Y-%m-%d")}
+
+        # si falla no se detiene sino que lo intenta 3 veces
+        intentos = 0
+        max_intentos = 3
+        exito = False
+
+        while intentos < max_intentos and not exito:
+            try:
+                respuesta = requests.get(url, params=parametros)
+                respuesta.raise_for_status() # Lanza un error si el codigo no es 200 
+
+                datos_bloque = respuesta.json()
+
+                if isinstance(datos_bloque, list): 
+                    lista_datos.extend(datos_bloque) # extend() une la lista nueva a la lista principal sin crear sublistas
+                    print(f"Bloque descargado: {fecha_inicio.date()} a {fecha_fin_bloque.date()}")
+                    exito = True
+
+            except Exception as error:
+                intentos += 1
+                print(f"Error en {fecha_inicio.date()} (intento {intentos})")
+                time.sleep(1)  # espera antes de reintentar para estabilizar lka conexion
+       
+        if not exito: #si fallo despues de los tres intentos
+            print(f"Se omitio el bloque {fecha_inicio.date()} despuss de {max_intentos} intentos")
+        
+        time.sleep(0.2) #pausa general
+       
+        fecha_inicio = fecha_fin_bloque + timedelta(days=1) #el nuevo inicio del bloque sera el dia siguiente del bloque anterios
+
+    # guardamos los resultados en la computadora para la siguiente vez
+    if lista_datos:  #guardar resultados
+        tabla = pd.DataFrame(lista_datos)
+        tabla.to_csv("datos_apod.csv", index=False) #se guarda sin indice como columna
+
+        print("Datos guardados correctamente")
+        print("Total de registros:", len(tabla))
+    else:
+        print("No se descargaron datos")
+')
+```
+
+- al realizar la solicitud a la API utilizando un rango de fechas del 24 de septiembre de 1994 al 30 de abril de 2026, nos dio como resultado 11273 registros
+
+```{r}
+py_run_string('
+# mostramos las primeras filas para revisar que todo este bien
+print(tabla.head())
+print("Total de registros listos para usar:", len(tabla))
+')
+```
+
+- ahora, la conversion de los datos a una dataframe facilitara el manejo de los datos
+
+```{r}
+py_run_string('
+tabla = pd.read_csv("datos_apod.csv") # carga el csv
+tabla["date"] = pd.to_datetime(tabla["date"]) # convertir a fecha
+print(tabla["date"].head())
+')
+```
+
+```{r}
+py_run_string("
+print(tabla.head())
+")
+```
+
+- se identificaron valores faltantes NaN en la columna de derechos de autor `copyright`
+
+```{r}
+py_run_string("
+tabla.info() #muestra un resumen general
+")
+```
+
+- los valores NaN representan datos faltantes, lo que indica que no todos los registros contienen informacion del autor
+
+```{r}
+py_run_string("
+print(tabla.isna().sum())") #identifica los valores faltantes en cada celda y cunta cuantos hay
+```
+
+- presenta 5718 valores faltantes de 11273 registros en total, no incluye informacion del autor, por lo que hacemos limpieza de datos sin eliminar registros y vereficamos qe no haya NaNs
+
+```{r}
+py_run_string('
+tabla["copyright"] = tabla["copyright"].fillna("Sin Autor") #se sustituyen los datos faltantes por sin autor
+print(tabla.isna().sum())
+')
+```
+
+Basándose en solicitudes de la API en el campo "explanation" haz búsquedas basadas en tu palabra.
+
+Como mi primer apellido es Becerra me toca `retrogade`
+
+```{r}
+py_run_string('
+palabra = "retrograde" #palabra clave que se desea buscar
+tabla_resultados = tabla[tabla["explanation"].str.lower().str.contains(palabra, na=False)] #str.lower() convierte todo el texto a minusculas y str.contains() busca la palabra dentro del texto
+print("Resultados encontrados:", len(tabla_resultados)) #muestra la cantidad de resultados encontrados
+')
+```
+
+- se buscaron los registros que contienen la palabra retrograde dentro de la columna `explanation`, para asegurar una busqueda correcta, el texto se convirtio a minusculas y finalmente, se obtuvo un nuevo conjunto de datos con las coincidencias y se conto cuantas se encontraron
+
+```{r}
+py_run_string('
+print(tabla_resultados[["date", "title", "copyright"]].head(10))') #se selecciona las columnas date y title para visualizar las fechas, titulos y autorws de los registros que contienen la palabra retrograde
+```
+
+- la columna 'copyright' existe errores de escritura con el autor tunc teze, por ello hacemos liempeza de datos para corregirlo
+
+```{r}
+py_run_string('
+tabla_resultados["copyright"] = tabla_resultados["copyright"].str.replace(r"\\s+", " ", regex=True).str.strip()
+
+variaciones_tunc = ["Tunc Tezel","Tunç Tezel","Tun Tezel", "Tun� Tezel", "TuncTezel" ]
+
+tabla_resultados["copyright"] = tabla_resultados["copyright"].replace(variaciones_tunc, "Tunc Tezel")# se reemplaza todas esas variaciones 
+print(tabla_resultados["copyright"].value_counts().head(10)) #vemos el resultado 
+tabla_resultados.to_csv("datos_apod_limpios.csv", index=False) #guarda la tabla ya corregida
+')
+```
+
+# 1. Para las búsquedas de tu palabra, ¿cuántos resultados obtuviste?
+
+```{r}
+py_run_string("
+print(len(tabla_resultados))
+")
+```
+
+- de 11273 registros unicamente se encontro 29 resultado que contiene la palabra retrograde en el campo `explanation`
+
+```{r}
+py_run_string("
+import matplotlib.pyplot as plt
+")
+```
+
+```{r}
+py_run_string("
+import matplotlib
+matplotlib.use('Agg') #configura matplotlib para que no intente abrir ventanas flotantes
+import matplotlib.pyplot as plt
+
+plt.close('all')
+total_palabra = len(tabla_resultados)
+total = len(tabla)
+sin_palabra = total - total_palabra
+
+valores = [total_palabra, sin_palabra]
+etiquetas = ['con palabra clave', 'sin palabra clave']
+
+plt.pie(valores, labels=etiquetas, autopct='%1.2f%%', explode=(0.1, 0))
+
+plt.title('Proporcion de resultados con palabra clave')
+
+plt.savefig('grafico_pastel.png', bbox_inches='tight')
+")
+
+knitr::include_graphics("grafico_pastel.png")
+```
+
+
+- esto indica que dicho termino no es frecuente dentro del contenido de la API en el periodo seleccionado, con tan solo el 0.26% de los datos, lo que sugiere que este tipo de fenomeno no aparece de manera regular en las descripciones diarias
+
+# 2. Para las búsquedas de tu palabra, ¿en qué rangos de fechas se introdujo el recurso?
+
+```{r}
+py_run_string('
+print(tabla_resultados["date"].min(), tabla_resultados["date"].max())
+')
+```
+
+- se menciono por primera vez el 20 de diciembre de 2001, casi 6 años despues del inicio de APOD y la publicacion mas reciente que contiene esa palabra fue a finales de enero de 2026, lo que demuestra que tiene una presencia de 24 años
+
+- aunque el termino ha estado activo durante 24 años, su baja frecuencia 0.26% nos dice que no es un vento cotidiano
+
+# 3. Para las búsquedas de tu palabra, ¿cuáles son los "media_type" más comunes?
+
+```{r}
+py_run_string("
+plt.figure()  # crea una figura nueva
+tabla_resultados['media_type'].value_counts().plot(kind='bar')
+
+plt.title('Tipo de contenido')
+plt.xlabel('Tipo')
+plt.ylabel('Cantidad')
+plt.savefig('grafico_barras.png', bbox_inches='tight')
+")
+
+knitr::include_graphics("grafico_barras.png")
+```
+
+- existe una clara predominancia de imagenes frente a los videos, con un total de 28 fotografias y un solo video
+
+- investigando un poco, esta diferencia se debe a que el movimiento `retroograde` es un fenomeno de larga duracion, cuya representacion visual mas efectiva es la composicion fotografica de múltiples exposiciones tomada a lo largo de varios meses
+
+# 4. Para las búsquedas de tu palabra, ¿quiénes son los autores o instituciones propietaria de los derechos (i.e. el copyright)?
+
+```{r}
+py_run_string('
+print(tabla_resultados["copyright"].value_counts())
+')
+```
+
+```{r}
+py_run_string("
+plt.figure()
+tabla_resultados['copyright'].value_counts().plot(kind='pie', autopct='%1.1f%%')
+
+plt.title('Proporción por autor')
+plt.ylabel('')
+plt.savefig('grafico_autores.png', bbox_inches='tight')
+")
+
+knitr::include_graphics("grafico_autores.png")
+```
+
+- Tunc Tezel destaca como el principal contribuyente con 14 menciones, representando el 48.3%, casi la mitad, seguido por un volumen significativo de obras de propiedad de la NASA, sin autor especificado con 11 registros (37.9%), el porcentaje restante se distribuye equitativamente entre otros autores e instituciones
+
+- investigando un poco, Tezel es un astronomo aficionado , fotografo e ingeniero civil turco, miembro de The World at Night (TWAN), un programa internacional en el que fotografos de todo el mundo capturan imagenes de cielos nocturnos vistos desde puntos de referencia notables del planeta
+
+- esto sugiere que el contenido sobre `retrogade` en APOD depende de colaboraciones con especialistas como Tezel mas que de capturas automaticas de satelites
